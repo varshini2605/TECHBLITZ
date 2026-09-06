@@ -850,3 +850,103 @@ def admin_export_excel():
         as_attachment=True,
         download_name=filename
     )
+
+@api_bp.route('/api/admin/questions/import', methods=['POST'])
+@admin_required
+def admin_import_questions():
+    try:
+        from services.question_import import read_question_file
+
+        file = request.files.get('file')
+        test_id = request.form.get('test_id', type=int)
+
+        if not file or not file.filename:
+            return jsonify({
+                'success': False,
+                'error': 'Please select an Excel (.xlsx) or CSV file.'
+            }), 400
+
+        if not test_id:
+            return jsonify({
+                'success': False,
+                'error': 'Please select a test before importing questions.'
+            }), 400
+
+        test = Test.query.get_or_404(test_id)
+
+        records, errors = read_question_file(file)
+
+        if errors and not records:
+            return jsonify({
+                'success': False,
+                'error': '\n'.join(errors[:10])
+            }), 400
+
+        if not records:
+            return jsonify({
+                'success': False,
+                'error': 'No valid questions were found in the file.'
+            }), 400
+
+       # Remove all existing questions from this test
+        Question.query.filter_by(test_id=test.id).delete(synchronize_session=False)
+
+# Add only the imported questions
+        for idx, data in enumerate(records, start=1):
+            db.session.add(
+                Question(
+                    test_id=test.id,
+                    order_index=idx,
+                    **data
+                )
+            )
+
+        test.recalculate_total_marks()
+        db.session.commit()
+
+
+        response = {
+            'success': True,
+            'message': f'Imported {len(records)} questions into {test.name}.',
+            'imported': len(records)
+        }
+
+        if errors:
+            response['warnings'] = errors[:10]
+
+        return jsonify(response), 200
+
+    except Exception as e:
+        db.session.rollback()
+
+        print('MCQ IMPORT ERROR:', repr(e))
+
+        return jsonify({
+            'success': False,
+            'error': f'Import failed: {str(e)}'
+        }), 500
+@api_bp.route('/api/admin/questions/delete-all', methods=['POST'])
+@admin_required
+def admin_delete_all_questions():
+    test_id = request.form.get('test_id', type=int)
+
+    if not test_id:
+        return jsonify({
+            'success': False,
+            'error': 'Test ID is required.'
+        }), 400
+
+    test = Test.query.get_or_404(test_id)
+
+    deleted = Question.query.filter_by(test_id=test.id).delete(
+        synchronize_session=False
+    )
+
+    test.recalculate_total_marks()
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Deleted {deleted} questions from {test.name}.',
+        'deleted': deleted
+    })
