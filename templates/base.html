@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}TECHBLITZ — Online Assessment Platform{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <!-- Header / Navbar -->
+  <header class="navbar">
+    <a href="{% if session.get('admin_id') %}{{ url_for('admin.dashboard_page') }}{% else %}{{ url_for('candidate.index') }}{% endif %}" class="brand-wrapper">
+      <div class="brand-logo">⚡</div>
+      <div class="brand-text">
+        <h1>TECHBLITZ</h1>
+        <p>Smart Browser-Monitored Online Test System</p>
+      </div>
+    </a>
+
+    <nav class="nav-links">
+      {% if session.get('admin_id') %}
+        <a href="{{ url_for('admin.dashboard_page') }}" class="nav-link {% if request.endpoint == 'admin.dashboard_page' %}active{% endif %}">Live Monitor</a>
+        <a href="{{ url_for('admin.registrations_page') }}" class="nav-link {% if request.endpoint == 'admin.registrations_page' %}active{% endif %}">Registrations</a>
+        <a href="{{ url_for('admin.questions_page') }}" class="nav-link {% if request.endpoint == 'admin.questions_page' %}active{% endif %}">Question Bank</a>
+        <a href="{{ url_for('admin.question_generator_page') }}" class="nav-link {% if request.endpoint == 'admin.question_generator_page' %}active{% endif %}">Generator</a>
+        <a href="{{ url_for('admin.tests_page') }}" class="nav-link {% if request.endpoint == 'admin.tests_page' %}active{% endif %}">Tests</a>
+        <a href="{{ url_for('auth.admin_logout') }}" class="btn btn-secondary btn-sm">Logout</a>
+      {% else %}
+        <a href="{{ url_for('auth.admin_login_page') }}" class="nav-link">Admin Portal</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <!-- Page Content -->
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Global Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>&copy; 2026 <strong>TECHBLITZ</strong> — Smart Browser-Monitored Online Assessment Platform. Built for College Coding Clubs.</p>
+  </footer>
+
+  <!-- Global Helper JS -->
+  <script>
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.innerHTML = `<span>${type === 'danger' ? '⚠️' : (type === 'success' ? '✅' : 'ℹ️')}</span> <div>${message}</div>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

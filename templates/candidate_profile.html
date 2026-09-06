@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}Candidate Profile & Violation Center — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <!-- Back Link & Header -->
+  <div style="margin-bottom: 1.5rem;">
+    <a href="/admin" class="btn btn-secondary btn-sm" style="margin-bottom: 0.75rem;">
+      ← Back to Live Dashboard
+    </a>
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+      <div>
+        <h1 style="font-size: 1.7rem; font-weight: 800; color: #ffffff;">VIOLATION CENTER & CANDIDATE PROFILE</h1>
+        <p style="color: var(--text-secondary); font-size: 0.88rem;">
+          Detailed forensic log, real-time proctor actions, and submission breakdown
+        </p>
+      </div>
+
+      <!-- Action Buttons Bar -->
+      <div style="display: flex; gap: 0.6rem; flex-wrap: wrap;">
+        <button type="button" onclick="executeAdminAction('GRANT_PERMISSION')" class="btn btn-success">
+          ✅ GRANT PERMISSION
+        </button>
+        <button type="button" onclick="executeAdminAction('UNBLOCK')" class="btn btn-primary">
+          🔓 UNBLOCK
+        </button>
+        <button type="button" onclick="executeAdminAction('BLOCK')" class="btn btn-warning">
+          ⛔ BLOCK
+        </button>
+        <button type="button" onclick="executeAdminAction('TERMINATE')" class="btn btn-danger">
+          🚨 TERMINATE TEST
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Profile Identity & Current Status Card -->
+  <div class="card" style="margin-bottom: 1.5rem; border-top: 4px solid {% if candidate.status == 'BLOCKED' or candidate.status == 'TERMINATED' %}var(--danger){% elif candidate.status == 'COMPLETED' or candidate.status == 'AUTO_SUBMITTED' %}var(--success){% else %}var(--primary){% endif %};">
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.25rem;">
+      
+      <div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Candidate Name</div>
+        <div style="font-size: 1.25rem; font-weight: 800; color: #ffffff;">{{ candidate.name }}</div>
+        <div style="font-family: var(--font-mono); color: var(--accent-cyan); font-size: 0.9rem;">
+          {{ candidate.hall_ticket_number }}
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Team ID</div>
+        <div style="font-size: 1.15rem; font-weight: 700; color: #ffffff;">{{ candidate.team_id }}</div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ candidate.email or 'No email' }}</div>
+      </div>
+
+      <div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Assessment Status</div>
+        <div style="margin-top: 0.25rem;">
+          <span class="badge {% if candidate.status == 'ACTIVE' or candidate.status == 'ACTIVE_AFTER_APPROVAL' %}badge-active{% elif candidate.status == 'WARNING' %}badge-warning{% elif candidate.status == 'BLOCKED' or candidate.status == 'TERMINATED' %}badge-danger{% else %}badge-completed{% endif %}" style="font-size: 0.85rem;">
+            {{ candidate.status }}
+          </span>
+        </div>
+        {% if candidate.block_reason %}
+          <div style="font-size: 0.75rem; color: var(--danger); margin-top: 0.25rem;">
+            ⚠️ {{ candidate.block_reason }}
+          </div>
+        {% endif %}
+      </div>
+
+      <div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Score / Progress</div>
+        <div style="font-family: var(--font-mono); font-size: 1.25rem; font-weight: 800; color: var(--success);">
+          {{ candidate.score }} / {{ candidate.total_marks }} ({{ candidate.percentage }}%)
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+          Answered: {{ candidate.answered_count() }} / {{ candidate.test.questions|length }}
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Violations Logged</div>
+        <div style="font-size: 1.3rem; font-weight: 800; color: {% if violations|length > 0 %}var(--danger){% else %}var(--success){% endif %};">
+          {{ violations|length }} / {{ candidate.test.max_violations }}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+          Time Left: {{ candidate.remaining_seconds() // 60 }}m {{ candidate.remaining_seconds() % 60 }}s
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- VIOLATION HISTORY TIMELINE -->
+  <div class="card" style="margin-bottom: 2rem; padding: 1.25rem;">
+    <div class="card-header">
+      <h2 class="card-title" style="color: var(--danger);">
+        🚨 Proctoring Violation History ({{ violations|length }})
+      </h2>
+      <div class="card-subtitle">Complete chronological event timeline</div>
+    </div>
+
+    {% if violations %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Strike</th>
+              <th>Violation Type</th>
+              <th>Timestamp</th>
+              <th>Acknowledged?</th>
+              <th>Warning Window</th>
+              <th>Admin Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in violations %}
+              <tr>
+                <td>
+                  <span class="badge {% if v.violation_number >= candidate.test.max_violations %}badge-danger{% else %}badge-warning{% endif %}">
+                    Strike #{{ v.violation_number }}
+                  </span>
+                </td>
+                <td>
+                  <strong style="color: #ffffff;">{{ v.type }}</strong>
+                </td>
+                <td style="font-family: var(--font-mono); font-size: 0.82rem;">
+                  {{ v.timestamp.strftime('%H:%M:%S') }}
+                </td>
+                <td>
+                  {% if v.acknowledged %}
+                    <span class="badge badge-active">✓ Acknowledged ({{ v.acknowledged_at.strftime('%H:%M:%S') if v.acknowledged_at else '' }})</span>
+                  {% else %}
+                    <span class="badge badge-danger">✗ Expired / Unacknowledged</span>
+                  {% endif %}
+                </td>
+                <td style="font-size: 0.8rem; color: var(--text-secondary);">
+                  {{ v.warning_start_time.strftime('%H:%M:%S') if v.warning_start_time else '--' }} → {{ v.warning_expiry_time.strftime('%H:%M:%S') if v.warning_expiry_time else '--' }}
+                </td>
+                <td>
+                  {% if v.admin_action %}
+                    <span class="badge badge-neutral">{{ v.admin_action }}</span>
+                  {% else %}
+                    <span style="color: var(--text-muted); font-size: 0.8rem;">None</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
+        ✅ No proctoring violations recorded for this candidate.
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- CANDIDATE QUESTION RESPONSES -->
+  <div class="card" style="padding: 1.25rem;">
+    <div class="card-header">
+      <h2 class="card-title">Candidate Answer Breakdown</h2>
+      <div class="card-subtitle">Response evaluation for each question</div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width: 40px;">#</th>
+            <th>Question</th>
+            <th style="width: 130px;">Selected Answer</th>
+            <th style="width: 120px;">Correct Answer</th>
+            <th style="width: 100px;">Marks Awarded</th>
+            <th style="width: 90px;">Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for qd in question_details %}
+            <tr>
+              <td><strong>{{ loop.index }}</strong></td>
+              <td>
+                <div style="font-weight: 600; color: #ffffff;">{{ qd.question.question_text }}</div>
+              </td>
+              <td>
+                {% if qd.selected_answer %}
+                  <span style="font-weight: 700; color: #ffffff;">Option {{ qd.selected_answer }}</span>
+                {% else %}
+                  <span style="color: var(--text-muted); font-style: italic;">Unattempted</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge badge-active">Option {{ qd.question.correct_answer }}</span>
+              </td>
+              <td>
+                <strong>{{ qd.marks_awarded }}</strong> / {{ qd.question.marks }}
+              </td>
+              <td>
+                {% if qd.is_correct %}
+                  <span class="badge badge-active">Correct</span>
+                {% elif qd.selected_answer %}
+                  <span class="badge badge-danger">Incorrect</span>
+                {% else %}
+                  <span class="badge badge-neutral">Skipped</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function executeAdminAction(action) {
+  let notes = '';
+  if (action === 'BLOCK' || action === 'TERMINATE') {
+    notes = prompt(`Confirm ${action}: Enter optional reason/notes for this action:`);
+    if (notes === null) return; // cancelled
+  } else {
+    if (!confirm(`Are you sure you want to perform '${action}' on this candidate?`)) return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/candidates/{{ candidate.id }}/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, notes })
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.error || 'Failed to execute action');
+      return;
+    }
+    showToast(data.message || 'Action executed successfully', 'success');
+    window.location.reload();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+</script>
+{% endblock %}

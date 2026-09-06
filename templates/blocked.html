@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Test Blocked — TECHBLITZ{% endblock %}
+
+{% block extra_head %}
+<style>
+  .navbar { display: none !important; }
+  .footer { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="display: flex; align-items: center; justify-content: center; min-height: 85vh;">
+  <div class="hero-state-box" id="blockedBox">
+    <div class="hero-state-icon">🚨</div>
+    <h1 class="hero-state-title">TEST TEMPORARILY BLOCKED</h1>
+    
+    <p class="hero-state-desc">
+      Your assessment has been temporarily blocked due to unacknowledged rule violations or browser-monitoring policy.
+      <br><br>
+      <span style="color: #ffffff; font-weight: 600;" id="blockReasonText">
+        {{ candidate.block_reason or 'Violation warning was not acknowledged within 20 seconds.' }}
+      </span>
+    </p>
+
+    <div style="margin-bottom: 2rem;">
+      <div class="waiting-pulse-badge" id="waitingBadge">
+        ⏳ WAITING FOR ADMIN APPROVAL
+      </div>
+    </div>
+
+    <!-- Candidate identity snapshot -->
+    <div style="background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 1rem; margin-bottom: 2rem; font-size: 0.85rem; color: var(--text-secondary);">
+      <div>Candidate: <strong style="color: #ffffff;">{{ candidate.name }}</strong> ({{ candidate.hall_ticket_number }})</div>
+      <div>Team: <strong style="color: #ffffff;">{{ candidate.team_id }}</strong></div>
+      <div style="margin-top: 0.3rem;">Violations Logged: <span style="color: var(--danger); font-weight: 700;">{{ candidate.violations|length }}</span></div>
+    </div>
+
+    <!-- Unblocked Alert Box (hidden initially) -->
+    <div id="unblockedAlert" style="display: none; background: var(--success-bg); border: 1px solid var(--success); border-radius: var(--radius-md); padding: 1.25rem; margin-bottom: 1.5rem; text-align: center;">
+      <div style="font-size: 1.25rem; font-weight: 800; color: var(--success); margin-bottom: 0.5rem;">
+        ✅ ADMIN PERMISSION GRANTED
+      </div>
+      <p style="color: #ffffff; font-size: 0.95rem; margin-bottom: 1.25rem;">
+        The administrator has reviewed your test session and approved you to continue.
+      </p>
+      <a href="/test" class="btn btn-success btn-lg btn-full" style="font-weight: 700;">
+        CONTINUE TEST NOW →
+      </a>
+    </div>
+
+    <p style="font-size: 0.78rem; color: var(--text-muted);">
+      This screen polls the proctoring server automatically. Do not close your browser.
+    </p>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let pollInterval = setInterval(checkUnblockStatus, 2500);
+
+async function checkUnblockStatus() {
+  try {
+    const res = await fetch('/api/candidate/status');
+    if (!res.ok) return;
+    const data = await res.json();
+
+    if (data.status === 'ACTIVE' || data.status === 'ACTIVE_AFTER_APPROVAL') {
+      clearInterval(pollInterval);
+      document.getElementById('waitingBadge').style.display = 'none';
+      document.getElementById('unblockedAlert').style.display = 'block';
+      // Automatically redirect after 1.5s
+      setTimeout(() => {
+        window.location.href = '/test';
+      }, 1500);
+    } else if (data.status === 'TERMINATED') {
+      clearInterval(pollInterval);
+      document.querySelector('.hero-state-title').textContent = 'TEST TERMINATED';
+      document.getElementById('blockReasonText').textContent = 'Your test has been terminated by the administrator.';
+      document.getElementById('waitingBadge').style.display = 'none';
+    }
+  } catch (e) {}
+}
+</script>
+{% endblock %}

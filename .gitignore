@@ -1,0 +1,72 @@
+# ==============================
+# TECHBLITZ — .gitignore
+# ==============================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+wheels/
+.eggs/
+*.manifest
+*.spec
+
+# --- Virtual Environment ---
+venv/
+env/
+.venv/
+ENV/
+
+# --- Environment & Secrets ---
+.env
+*.env
+.env.local
+.env.production
+.env.staging
+
+# --- Database (SQLite) ---
+instance/
+*.db
+*.sqlite
+*.sqlite3
+
+# --- Uploads (user-uploaded files) ---
+uploads/
+
+# --- macOS System Files ---
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+
+# --- Pytest / Testing Cache ---
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# --- IDE / Editor Files ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Flask Session Files ---
+flask_session/
+
+# --- Compiled Assets ---
+*.min.js.map
+*.min.css.map

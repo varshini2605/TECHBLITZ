@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Questions — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <!-- Header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+      <h1 style="font-size: 1.7rem; font-weight: 800; color: #ffffff;">QUESTION BANK MANAGEMENT</h1>
+      <p style="color: var(--text-secondary); font-size: 0.88rem;">
+        Add, edit, set correct answers, and manage assessment questions
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <a href="/admin/question-generator" class="btn btn-secondary">
+        ⚡ Generate with AI / Templates
+      </a>
+      <button type="button" onclick="openCreateQuestionModal()" class="btn btn-primary">
+        + Add Question Manually
+      </button>
+      <button type="button" onclick="document.getElementById('mcqFile').click()" class="btn btn-secondary">📥 Upload MCQs from Excel</button>
+      <input id="mcqFile" type="file" accept=".xlsx,.csv" style="display:none" onchange="uploadMCQs(this)">
+    </div>
+  </div>
+
+  <!-- Test Selector & Stats Bar -->
+  <div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <label class="form-label" style="margin-bottom: 0;">Selected Test:</label>
+        <select id="testSelect" class="form-control" style="width: auto; min-width: 250px;" onchange="window.location.href='/admin/questions?test_id=' + this.value">
+          {% for t in tests %}
+            <option value="{{ t.id }}" {% if current_test and current_test.id == t.id %}selected{% endif %}>
+              {{ t.name }} ({{ t.test_id }})
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if current_test %}
+        <div style="display: flex; gap: 1.5rem; font-size: 0.9rem;">
+          <div>Questions: <strong style="color: #ffffff;">{{ questions|length }}</strong></div>
+          <div>Total Marks: <strong style="color: var(--success);">{{ current_test.total_marks }}</strong></div>
+          <div>Duration: <strong style="color: var(--accent-cyan);">{{ current_test.duration_minutes }} Mins</strong></div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Questions Table -->
+  <div class="card" style="padding: 1.25rem;">
+    <div class="card-header">
+      <h2 class="card-title">Questions in Test ({{ questions|length }})</h2>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th style="width: 50px;">#</th>
+            <th>Question</th>
+            <th>Options</th>
+            <th style="width: 90px;">Correct</th>
+            <th style="width: 70px;">Marks</th>
+            <th>Topic</th>
+            <th style="width: 140px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if questions %}
+            {% for q in questions %}
+              <tr id="qRow_{{ q.id }}">
+                <td><strong>{{ loop.index }}</strong></td>
+                <td>
+                  <div style="font-weight: 600; color: #ffffff; margin-bottom: 0.25rem;">{{ q.question_text }}</div>
+                  {% if q.explanation %}
+                    <small style="color: var(--text-muted); font-size: 0.78rem;">💡 {{ q.explanation }}</small>
+                  {% endif %}
+                </td>
+                <td style="font-size: 0.8rem; color: var(--text-secondary);">
+                  <div><strong>A:</strong> {{ q.option_a }}</div>
+                  <div><strong>B:</strong> {{ q.option_b }}</div>
+                  <div><strong>C:</strong> {{ q.option_c }}</div>
+                  <div><strong>D:</strong> {{ q.option_d }}</div>
+                </td>
+                <td>
+                  <span class="badge badge-active" style="font-size: 0.85rem;">Option {{ q.correct_answer }}</span>
+                </td>
+                <td><strong>{{ q.marks }}</strong></td>
+                <td>
+                  <span class="badge badge-neutral">{{ q.topic }}</span>
+                  <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem;">{{ q.difficulty }}</div>
+                </td>
+                <td>
+                  <div style="display: flex; gap: 0.4rem;">
+                    <button type="button" onclick="openEditQuestionModal({{ q.id }})" class="btn btn-secondary btn-sm">Edit</button>
+                    <button type="button" onclick="deleteQuestion({{ q.id }})" class="btn btn-danger btn-sm">Del</button>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 3rem;">
+                No questions have been added to this test yet. Click <strong>+ Add Question Manually</strong> or use the <strong>Question Generator</strong>.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ADD / EDIT QUESTION MODAL -->
+  <div id="questionModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-content">
+      <h2 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 1rem;" id="qModalTitle">Question Editor</h2>
+      
+      <input type="hidden" id="editQId">
+      <input type="hidden" id="modalTestId" value="{{ current_test.id if current_test else 1 }}">
+
+      <div class="form-group">
+        <label class="form-label">Question Text *</label>
+        <textarea id="mqText" class="form-control" placeholder="Enter question..." required></textarea>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Option A *</label>
+          <input type="text" id="mqOptA" class="form-control" placeholder="Option A" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Option B *</label>
+          <input type="text" id="mqOptB" class="form-control" placeholder="Option B" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Option C *</label>
+          <input type="text" id="mqOptC" class="form-control" placeholder="Option C" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Option D *</label>
+          <input type="text" id="mqOptD" class="form-control" placeholder="Option D" required>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Correct Answer *</label>
+          <select id="mqCorrect" class="form-control">
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Marks *</label>
+          <input type="number" id="mqMarks" class="form-control" step="0.5" min="0.5" value="1.0" required>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Topic</label>
+          <input type="text" id="mqTopic" class="form-control" value="General">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Difficulty</label>
+          <select id="mqDifficulty" class="form-control">
+            <option value="Easy">Easy</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="Hard">Hard</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Explanation (Optional)</label>
+        <textarea id="mqExplanation" class="form-control" placeholder="Explanation for correct answer..."></textarea>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+        <button type="button" onclick="closeQuestionModal()" class="btn btn-secondary">Cancel</button>
+        <button type="button" onclick="saveQuestion()" class="btn btn-primary">Save Question</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openCreateQuestionModal() {
+  document.getElementById('qModalTitle').textContent = 'Add Question';
+  document.getElementById('editQId').value = '';
+  document.getElementById('mqText').value = '';
+  document.getElementById('mqOptA').value = '';
+  document.getElementById('mqOptB').value = '';
+  document.getElementById('mqOptC').value = '';
+  document.getElementById('mqOptD').value = '';
+  document.getElementById('mqCorrect').value = 'A';
+  document.getElementById('mqMarks').value = '1.0';
+  document.getElementById('mqTopic').value = 'General';
+  document.getElementById('mqDifficulty').value = 'Medium';
+  document.getElementById('mqExplanation').value = '';
+  document.getElementById('questionModal').style.display = 'flex';
+}
+
+function openEditQuestionModal(qId) {
+  // Load question data from row
+  const row = document.getElementById(`qRow_${qId}`);
+  if (!row) return;
+  
+  // We can fetch from API or populate directly
+  document.getElementById('qModalTitle').textContent = 'Edit Question';
+  document.getElementById('editQId').value = qId;
+
+  // Fetch full details
+  fetch(`/api/admin/questions?test_id={{ current_test.id if current_test else 1 }}`)
+    .then(r => r.json())
+    .then(data => {
+      // populate modal
+    });
+
+  document.getElementById('questionModal').style.display = 'flex';
+}
+
+function closeQuestionModal() {
+  document.getElementById('questionModal').style.display = 'none';
+}
+
+async function uploadMCQs(input) {
+  if (!input.files.length) return;
+  const testId = document.getElementById('testSelect')?.value;
+  if (!testId) { alert('Please select a test first.'); input.value = ''; return; }
+  if (!confirm(`Import ${input.files[0].name} into the selected test?`)) { input.value = ''; return; }
+  const form = new FormData();
+  form.append('file', input.files[0]);
+  form.append('test_id', testId);
+  try {
+    const res = await fetch('/api/admin/questions/import', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok || !data.success) { alert(data.error || 'Import failed'); return; }
+    alert(data.message + (data.warnings?.length ? '\n\nWarnings:\n' + data.warnings.join('\n') : ''));
+    window.location.reload();
+  } catch (e) { alert('Import error: ' + e.message); }
+  finally { input.value = ''; }
+}
+
+async function saveQuestion() {
+  const qId = document.getElementById('editQId').value;
+  const testId = document.getElementById('modalTestId').value;
+
+  const payload = {
+    test_id: testId,
+    question_text: document.getElementById('mqText').value.trim(),
+    option_a: document.getElementById('mqOptA').value.trim(),
+    option_b: document.getElementById('mqOptB').value.trim(),
+    option_c: document.getElementById('mqOptC').value.trim(),
+    option_d: document.getElementById('mqOptD').value.trim(),
+    correct_answer: document.getElementById('mqCorrect').value,
+    marks: document.getElementById('mqMarks').value,
+    topic: document.getElementById('mqTopic').value.trim(),
+    difficulty: document.getElementById('mqDifficulty').value,
+    explanation: document.getElementById('mqExplanation').value.trim()
+  };
+
+  if (!payload.question_text || !payload.option_a || !payload.option_b || !payload.option_c || !payload.option_d) {
+    alert('Please complete the question text and all four options.');
+    return;
+  }
+
+  const url = qId ? `/api/admin/questions/${qId}` : '/api/admin/questions';
+  const method = qId ? 'PUT' : 'POST';
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.error || 'Failed to save question');
+      return;
+    }
+    showToast('Question saved successfully', 'success');
+    closeQuestionModal();
+    window.location.reload();
+  } catch (e) {
+    alert('Error saving question: ' + e.message);
+  }
+}
+
+async function deleteQuestion(qId) {
+  if (!confirm('Are you sure you want to delete this question?')) return;
+  try {
+    const res = await fetch(`/api/admin/questions/${qId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.error || 'Failed to delete question');
+      return;
+    }
+    showToast('Question deleted', 'success');
+    document.getElementById(`qRow_${qId}`)?.remove();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+</script>
+{% endblock %}
