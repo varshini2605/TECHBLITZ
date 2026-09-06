@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Assessment Result — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container container-narrow" style="margin-top: 3rem; margin-bottom: 4rem;">
+  <div class="card" style="border-top: 4px solid var(--success); text-align: center;">
+    
+    <div style="font-size: 3.5rem; margin-bottom: 0.5rem;">🎉</div>
+    
+    <h1 style="font-size: 1.8rem; font-weight: 800; color: #ffffff; margin-bottom: 0.5rem;">
+      TEST SUBMITTED SUCCESSFULLY
+    </h1>
+    
+    <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 2rem;">
+      Thank you for participating in <strong>{{ test.name }}</strong>! Your answers have been validated and recorded.
+    </p>
+
+    <!-- Submission Status Banner -->
+    <div style="background: var(--bg-secondary); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 2rem; margin-bottom: 2rem;">
+      <div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 0.5rem;">
+        Assessment Status
+      </div>
+      <div style="font-size: 1.5rem; font-weight: 800; color: var(--success); margin-bottom: 0.5rem;">
+        RESPONSES RECORDED & SECURED
+      </div>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; max-width: 480px; margin: 0 auto;">
+        Your submission has been securely received by the server. As per test regulations, final scores and official rankings will be announced by the club administrators.
+      </p>
+      <div style="margin-top: 1.25rem;">
+        <span class="badge badge-completed" style="font-size: 0.85rem; padding: 0.4rem 1rem;">
+          Status: {{ candidate.status }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Candidate Breakdown Grid -->
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-bottom: 2rem; text-align: left;">
+      <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Candidate Name</div>
+        <div style="font-weight: 700; color: #ffffff;">{{ candidate.name }}</div>
+      </div>
+      <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Hall Ticket Number</div>
+        <div style="font-weight: 700; color: #ffffff; font-family: var(--font-mono);">{{ candidate.hall_ticket_number }}</div>
+      </div>
+      <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Team Identifier</div>
+        <div style="font-weight: 700; color: #ffffff;">{{ candidate.team_id }}</div>
+      </div>
+      <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border);">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Violations Recorded</div>
+        <div style="font-weight: 700; color: {% if candidate.violations|length > 0 %}var(--warning){% else %}var(--success){% endif %};">
+          {{ candidate.violations|length }} / {{ test.max_violations }}
+        </div>
+      </div>
+      <div style="background: var(--bg-input); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border); grid-column: span 2;">
+        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Submission Timestamp</div>
+        <div style="font-weight: 700; color: #ffffff; font-family: var(--font-mono);">
+          {{ candidate.submission_time.strftime('%Y-%m-%d %H:%M:%S UTC') if candidate.submission_time else 'Submitted' }}
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <a href="/" class="btn btn-secondary btn-full">
+        Back to Home
+      </a>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+
+{% block title %}Registration Management — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <!-- Header -->
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+      <h1 style="font-size: 1.7rem; font-weight: 800; color: #ffffff;">REGISTRATION DETAILS</h1>
+      <p style="color: var(--text-secondary); font-size: 0.88rem;">
+        Candidate Access Control & Spreadsheet Import Management
+      </p>
+    </div>
+    <div style="display: flex; gap: 0.75rem;">
+      <button type="button" onclick="openManualAddModal()" class="btn btn-primary">
+        + Add Candidate Manually
+      </button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 1.5rem;">
+    <div class="stat-card">
+      <span class="stat-title">Total Registered</span>
+      <span class="stat-value text-primary" id="regTotalCount">{{ total_count }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Active Registrations</span>
+      <span class="stat-value text-success" id="regActiveCount">{{ active_count }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Disabled</span>
+      <span class="stat-value text-danger" id="regDisabledCount">{{ disabled_count }}</span>
+    </div>
+  </div>
+
+  <!-- DRAG & DROP REGISTRATION UPLOAD ZONE -->
+  <div class="drop-zone" id="regDropZone" onclick="document.getElementById('regFileInput').click()">
+    <div class="drop-zone-icon">📁</div>
+    <h2 class="drop-zone-title">REGISTRATION IMPORT</h2>
+    <p class="drop-zone-subtitle">Drag & Drop Registration File Here OR click to browse</p>
+    <div>
+      <button type="button" class="btn btn-secondary" style="pointer-events: none;">
+        [ CHOOSE FILE ]
+      </button>
+    </div>
+    <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.75rem;">
+      For Google Sheets: File → Download → Excel (.xlsx) or CSV, then upload the downloaded file. Automatic column detection enabled.
+    </p>
+    <input type="file" id="regFileInput" style="display: none;" onchange="handleFileSelected(event)">
+  </div>
+
+  <!-- IMPORT PREVIEW MODAL / SECTION -->
+  <div id="importPreviewCard" class="card" style="display: none; margin-bottom: 2rem; border-color: var(--primary);">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title" style="color: var(--accent-cyan);">IMPORT PREVIEW</h2>
+        <div class="card-subtitle" id="importPreviewMeta">Review records before confirming database insertion</div>
+      </div>
+      <div style="display: flex; gap: 0.5rem;">
+        <button type="button" onclick="cancelImportPreview()" class="btn btn-secondary btn-sm">
+          Cancel Import
+        </button>
+      </div>
+    </div>
+
+    <!-- Preview Stat Row -->
+    <div style="display: flex; gap: 1.5rem; background: var(--bg-input); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem; font-size: 0.9rem; flex-wrap: wrap;">
+      <div>Total Rows: <strong id="prevTotalCount">0</strong></div>
+      <div style="color: var(--success);">Valid Records: <strong id="prevValidCount">0</strong></div>
+      <div style="color: var(--danger);">Invalid Records: <strong id="prevInvalidCount">0</strong></div>
+      <div style="color: var(--warning);">Duplicates Detected: <strong id="prevDupCount">0</strong></div>
+    </div>
+
+    <!-- Duplicate Mode Selection -->
+    <div id="duplicateHandlingBox" style="display: none; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 1rem; border-radius: var(--radius-md); margin-bottom: 1.25rem;">
+      <div style="font-size: 0.88rem; font-weight: 700; color: var(--warning); margin-bottom: 0.5rem;">
+        Duplicate Hall Ticket Records Detected — Choose Action:
+      </div>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+          <input type="radio" name="dupMode" value="skip" checked> <span>Skip Duplicates (Recommended)</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+          <input type="radio" name="dupMode" value="update"> <span>Update Existing Records</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer;">
+          <input type="radio" name="dupMode" value="keep"> <span>Keep Existing Unchanged</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Records Preview Table -->
+    <div class="table-responsive" style="max-height: 350px; overflow-y: auto; margin-bottom: 1.5rem;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Row</th>
+            <th>Hall Ticket</th>
+            <th>Name</th>
+            <th>Team ID</th>
+            <th>Email</th>
+            <th>Validation Status</th>
+          </tr>
+        </thead>
+        <tbody id="previewTableBody">
+        </tbody>
+      </table>
+    </div>
+
+    <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+      <button type="button" onclick="cancelImportPreview()" class="btn btn-secondary">
+        [ CANCEL IMPORT ]
+      </button>
+      <button type="button" id="confirmImportBtn" onclick="confirmImport()" class="btn btn-success" style="font-weight: 700;">
+        [ CONFIRM IMPORT ]
+      </button>
+    </div>
+  </div>
+
+  <!-- COLUMN MAPPING MODAL (Shown if headers cannot be auto-detected) -->
+  <div id="mappingModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-content">
+      <h2 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 0.5rem;">MAP REGISTRATION COLUMNS</h2>
+      <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 1.5rem;">
+        Please assign your spreadsheet columns to the required TECHBLITZ fields.
+      </p>
+
+      <div class="form-group">
+        <label class="form-label">Hall Ticket Number Column *</label>
+        <select id="mapHallTicket" class="form-control"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Name Column *</label>
+        <select id="mapName" class="form-control"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Team ID Column *</label>
+        <select id="mapTeamId" class="form-control"></select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Column (Optional)</label>
+        <select id="mapEmail" class="form-control"></select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+        <button type="button" onclick="closeMappingModal()" class="btn btn-secondary">Cancel</button>
+        <button type="button" onclick="applyColumnMapping()" class="btn btn-primary">VALIDATE DATA →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MANUAL ADD / EDIT MODAL -->
+  <div id="registrationModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-content">
+      <h2 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 1rem;" id="regModalTitle">Add Registration</h2>
+      
+      <input type="hidden" id="editRegId">
+
+      <div class="form-group">
+        <label class="form-label">Hall Ticket Number *</label>
+        <input type="text" id="mHallTicket" class="form-control" placeholder="e.g. JITS23A0001" style="text-transform: uppercase;" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Full Name *</label>
+        <input type="text" id="mName" class="form-control" placeholder="e.g. Rahul Reddy" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Team ID *</label>
+        <input type="text" id="mTeamId" class="form-control" placeholder="e.g. TEAM01" style="text-transform: uppercase;" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Email Address (Optional)</label>
+        <input type="email" id="mEmail" class="form-control" placeholder="candidate@example.com">
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select id="mStatus" class="form-control">
+          <option value="ACTIVE">ACTIVE</option>
+          <option value="DISABLED">DISABLED</option>
+        </select>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+        <button type="button" onclick="closeRegistrationModal()" class="btn btn-secondary">Cancel</button>
+        <button type="button" onclick="saveRegistration()" class="btn btn-primary">Save Registration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEARCH & FILTER CONTROLS -->
+  <div class="card" style="margin-bottom: 1.5rem; padding: 1.25rem;">
+    <div style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 1rem; align-items: end;">
+      <div>
+        <label class="form-label">Search Registrations</label>
+        <input type="text" id="searchRegInput" class="form-control" placeholder="Search by Hall Ticket, Name, or Team..." oninput="debounceSearch()">
+      </div>
+
+      <div>
+        <label class="form-label">Filter by Team</label>
+        <select id="teamFilterSelect" class="form-control" onchange="loadRegistrations()">
+          <option value="">All Teams</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="form-label">Filter Status</label>
+        <select id="statusFilterSelect" class="form-control" onchange="loadRegistrations()">
+          <option value="">All Statuses</option>
+          <option value="ACTIVE">Active</option>
+          <option value="DISABLED">Disabled</option>
+        </select>
+      </div>
+
+      <div>
+        <button type="button" onclick="loadRegistrations()" class="btn btn-secondary">
+          Refresh
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTRATION DATABASE TABLE -->
+  <div class="card" style="padding: 1.25rem;">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Registration Database</h2>
+        <div class="card-subtitle">Source of truth for candidate assessment authentication</div>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Hall Ticket</th>
+            <th>Name</th>
+            <th>Team ID</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Source</th>
+            <th>Imported At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="registrationTableBody">
+          <tr>
+            <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+              Loading registration records...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/registration.js') }}"></script>
+{% endblock %}

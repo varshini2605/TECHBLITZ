@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Candidate Login — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container container-narrow" style="margin-top: 3rem; margin-bottom: 3rem;">
+  <div class="card" style="box-shadow: 0 10px 30px rgba(0,0,0,0.5); border-top: 4px solid var(--primary);">
+    <div style="text-align: center; margin-bottom: 2rem;">
+      <div class="brand-logo" style="margin: 0 auto 1rem; width: 50px; height: 50px; font-size: 1.6rem;">⚡</div>
+      <h2 style="font-size: 1.6rem; font-weight: 800; color: #ffffff;">TECHBLITZ</h2>
+      <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;">
+        Smart Browser-Monitored Online Test System
+      </p>
+      {% if test %}
+        <div style="margin-top: 1rem; display: inline-block; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.3); padding: 0.35rem 1rem; border-radius: var(--radius-full); font-size: 0.85rem; color: #c7d2fe;">
+          Active Event: <strong>{{ test.name }}</strong> ({{ test.duration_minutes }} Mins)
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Error Alert Box -->
+    <div id="loginError" style="display: none; background: var(--danger-bg); border: 1px solid var(--danger); color: #fca5a5; padding: 0.85rem 1rem; border-radius: var(--radius-md); margin-bottom: 1.5rem; font-size: 0.9rem;">
+      <span id="loginErrorText"></span>
+    </div>
+
+    <form id="candidateLoginForm" onsubmit="handleCandidateLogin(event)">
+      <div class="form-group">
+        <label class="form-label" for="hallTicket">Hall Ticket Number</label>
+        <input 
+          type="text" 
+          id="hallTicket" 
+          class="form-control" 
+          placeholder="e.g. JITS23A0001 or TB001" 
+          required 
+          autocomplete="off"
+          style="text-transform: uppercase;"
+        >
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem; display: block;">Must match your registered college hall ticket / roll number.</small>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="candidateName">Name</label>
+        <input 
+          type="text" 
+          id="candidateName" 
+          class="form-control" 
+          placeholder="e.g. Rahul Reddy" 
+          required 
+          autocomplete="off"
+        >
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem; display: block;">Enter your full name as registered.</small>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="teamId">Team ID</label>
+        <input 
+          type="text" 
+          id="teamId" 
+          class="form-control" 
+          placeholder="e.g. TEAM01 or TEAM-07" 
+          required 
+          autocomplete="off"
+          style="text-transform: uppercase;"
+        >
+        <small style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.2rem; display: block;">Assigned team identifier.</small>
+      </div>
+
+      <div style="margin-top: 2rem;">
+        <button type="submit" id="loginBtn" class="btn btn-primary btn-lg btn-full">
+          CONTINUE TO ASSESSMENT →
+        </button>
+      </div>
+    </form>
+
+    <div style="margin-top: 1.75rem; padding-top: 1.25rem; border-top: 1px solid var(--border); text-align: center;">
+      <p style="font-size: 0.8rem; color: var(--text-muted);">
+        🔒 Access is restricted to candidates registered in the admin database.
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function handleCandidateLogin(e) {
+  e.preventDefault();
+  const errBox = document.getElementById('loginError');
+  const errText = document.getElementById('loginErrorText');
+  const btn = document.getElementById('loginBtn');
+  
+  errBox.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Verifying Registration...';
+
+  const payload = {
+    hall_ticket_number: document.getElementById('hallTicket').value.trim(),
+    name: document.getElementById('candidateName').value.trim(),
+    team_id: document.getElementById('teamId').value.trim()
+  };
+
+  try {
+    const res = await fetch('/api/candidate/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      errBox.style.display = 'block';
+      errText.textContent = data.error || 'Authentication failed. Please verify your credentials.';
+      btn.disabled = false;
+      btn.textContent = 'CONTINUE TO ASSESSMENT →';
+      return;
+    }
+
+    // Success -> redirect to instructions or test
+    window.location.href = data.redirect || '/instructions';
+  } catch (err) {
+    errBox.style.display = 'block';
+    errText.textContent = 'Network error connecting to verification server. Please try again.';
+    btn.disabled = false;
+    btn.textContent = 'CONTINUE TO ASSESSMENT →';
+  }
+}
+</script>
+{% endblock %}

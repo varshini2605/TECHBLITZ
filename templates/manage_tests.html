@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Manage Tests — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+      <h1 style="font-size: 1.7rem; font-weight: 800; color: #ffffff;">TEST CONFIGURATION</h1>
+      <p style="color: var(--text-secondary); font-size: 0.88rem;">
+        Configure examination parameters, durations, and proctoring rules
+      </p>
+    </div>
+
+    <div>
+      <button type="button" onclick="openCreateTestModal()" class="btn btn-primary">
+        + Create New Test
+      </button>
+    </div>
+  </div>
+
+  <div class="card" style="padding: 1.25rem;">
+    <div class="table-responsive">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Test ID</th>
+            <th>Name</th>
+            <th>Duration</th>
+            <th>Marks</th>
+            <th>Max Violations</th>
+            <th>Auto-Block</th>
+            <th>Auto-Terminate</th>
+            <th>Randomize</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tests %}
+            <tr id="testRow_{{ t.id }}">
+              <td style="font-family: var(--font-mono); font-weight: 700; color: var(--accent-cyan);">
+                {{ t.test_id }}
+              </td>
+              <td>
+                <div style="font-weight: 700; color: #ffffff;">{{ t.name }}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ t.description }}</div>
+              </td>
+              <td>{{ t.duration_minutes }} Mins</td>
+              <td><strong>{{ t.total_marks }}</strong></td>
+              <td>{{ t.max_violations }}</td>
+              <td>
+                <span class="badge {% if t.auto_block %}badge-active{% else %}badge-neutral{% endif %}">
+                  {{ 'ON' if t.auto_block else 'OFF' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge {% if t.auto_terminate %}badge-danger{% else %}badge-neutral{% endif %}">
+                  {{ 'ON' if t.auto_terminate else 'OFF' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge badge-neutral">
+                  {{ 'ON' if t.randomize_questions else 'OFF' }}
+                </span>
+              </td>
+              <td>
+                <span class="badge {% if t.active %}badge-active{% else %}badge-blocked{% endif %}">
+                  {{ 'ACTIVE' if t.active else 'INACTIVE' }}
+                </span>
+              </td>
+              <td>
+                <a href="/admin/questions?test_id={{ t.id }}" class="btn btn-secondary btn-sm">
+                  Questions
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CREATE TEST MODAL -->
+  <div id="testModal" class="modal-backdrop" style="display: none;">
+    <div class="modal-content">
+      <h2 style="font-size: 1.3rem; font-weight: 800; margin-bottom: 1rem;">Create Assessment Test</h2>
+
+      <div class="form-group">
+        <label class="form-label">Test Name *</label>
+        <input type="text" id="mtName" class="form-control" placeholder="e.g. TECHBLITZ ROUND 2" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Test ID Code (Slug) *</label>
+        <input type="text" id="mtSlug" class="form-control" placeholder="e.g. TB2026R2" style="text-transform: uppercase;" required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="mtDesc" class="form-control" placeholder="Brief event description..."></textarea>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+        <div class="form-group">
+          <label class="form-label">Duration (Minutes) *</label>
+          <input type="number" id="mtDuration" class="form-control" value="20" min="5">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Max Allowed Violations *</label>
+          <input type="number" id="mtMaxViolations" class="form-control" value="3" min="1">
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 0.5rem;">
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="mtAutoBlock" checked> <span>Auto-Block on violation limit</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="mtAutoTerminate"> <span>Auto-Terminate on violation limit</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="mtRandomizeQuestions"> <span>Randomize question order</span>
+        </label>
+        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+          <input type="checkbox" id="mtActive" checked> <span>Set test active</span>
+        </label>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+        <button type="button" onclick="closeTestModal()" class="btn btn-secondary">Cancel</button>
+        <button type="button" onclick="saveNewTest()" class="btn btn-primary">Create Test</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function openCreateTestModal() {
+  document.getElementById('testModal').style.display = 'flex';
+}
+function closeTestModal() {
+  document.getElementById('testModal').style.display = 'none';
+}
+
+async function saveNewTest() {
+  const payload = {
+    name: document.getElementById('mtName').value.trim(),
+    test_id: document.getElementById('mtSlug').value.trim().toUpperCase(),
+    description: document.getElementById('mtDesc').value.trim(),
+    duration_minutes: document.getElementById('mtDuration').value,
+    max_violations: document.getElementById('mtMaxViolations').value,
+    auto_block: document.getElementById('mtAutoBlock').checked,
+    auto_terminate: document.getElementById('mtAutoTerminate').checked,
+    randomize_questions: document.getElementById('mtRandomizeQuestions').checked,
+    active: document.getElementById('mtActive').checked
+  };
+
+  if (!payload.name || !payload.test_id) {
+    alert('Test Name and Test ID code are required');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/tests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      alert(data.error || 'Failed to create test');
+      return;
+    }
+    showToast('Test created successfully', 'success');
+    window.location.reload();
+  } catch (e) {
+    alert('Error: ' + e.message);
+  }
+}
+</script>
+{% endblock %}

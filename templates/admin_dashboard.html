@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Live Proctoring Dashboard — TECHBLITZ{% endblock %}
+
+{% block content %}
+<div class="container">
+  
+  <!-- Dashboard Top Bar -->
+  <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem;">
+    <div>
+      <h1 style="font-size: 1.7rem; font-weight: 800; color: #ffffff;">LIVE PROCTORING & MONITORING</h1>
+      <p style="color: var(--text-secondary); font-size: 0.88rem;">
+        Event: <strong>{{ active_test.name if active_test else 'No Active Test' }}</strong> 
+        {% if active_test %}({{ active_test.test_id }} | {{ active_test.duration_minutes }} Mins | Max Violations: {{ active_test.max_violations }}){% endif %}
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+      <a href="/api/admin/export/excel{% if active_test %}?test_id={{ active_test.id }}{% endif %}" class="btn btn-success">
+        📊 DOWNLOAD RESULTS EXCEL
+      </a>
+      <a href="/admin/registrations" class="btn btn-secondary">
+        📁 Registrations
+      </a>
+      <a href="/admin/question-generator" class="btn btn-primary">
+        ⚡ Question Generator
+      </a>
+    </div>
+  </div>
+
+  <!-- Real-time Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <span class="stat-title">Total Registered</span>
+      <span class="stat-value text-primary" id="statRegistered">{{ total_registered }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Total Started</span>
+      <span class="stat-value" id="statTotal">{{ total_candidates }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Active Now</span>
+      <span class="stat-value text-success" id="statActive">{{ active_candidates }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Completed</span>
+      <span class="stat-value text-cyan" id="statCompleted">{{ completed_candidates }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Blocked</span>
+      <span class="stat-value text-danger" id="statBlocked">{{ blocked_candidates }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Flagged</span>
+      <span class="stat-value text-warning" id="statFlagged">{{ flagged_candidates }}</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-title">Terminated</span>
+      <span class="stat-value text-danger" id="statTerminated">{{ terminated_candidates }}</span>
+    </div>
+  </div>
+
+  <!-- Live Monitoring Grid (2 columns: Candidate Table + Live Violation Feed) -->
+  <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; margin-bottom: 2rem;">
+    
+    <!-- Active Candidates Table -->
+    <div class="card" style="padding: 1.25rem;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" style="font-size: 1.15rem;">Live Candidates Overview</h2>
+          <div class="card-subtitle">Real-time candidate progress, timers, and statuses</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px var(--success);"></span>
+          <span style="font-size: 0.75rem; color: var(--text-secondary);">Auto-refreshing (2.5s)</span>
+        </div>
+      </div>
+
+      <div class="table-responsive" style="max-height: 480px; overflow-y: auto;">
+        <table class="table" id="candidatesTable">
+          <thead>
+            <tr>
+              <th>Candidate</th>
+              <th>Hall Ticket</th>
+              <th>Team</th>
+              <th>Progress</th>
+              <th>Time Left</th>
+              <th>Violations</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="candidatesTableBody">
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                Loading candidates...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Live Violation Feed & Alert Box -->
+    <div class="card" style="padding: 1.25rem;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title" style="font-size: 1.15rem; color: var(--danger);">
+            🚨 Real-Time Violation Feed
+          </h2>
+          <div class="card-subtitle">Instant proctoring alert stream</div>
+        </div>
+      </div>
+
+      <div id="violationFeedContainer" style="display: flex; flex-direction: column; gap: 0.75rem; max-height: 480px; overflow-y: auto; padding-right: 0.25rem;">
+        <div style="text-align: center; color: var(--text-muted); padding: 2rem; font-size: 0.85rem;">
+          No violations detected yet.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Live Results & Rankings Section -->
+  <div class="card" style="margin-bottom: 2rem;">
+    <div class="card-header">
+      <div>
+        <h2 class="card-title">Live Results & Rankings</h2>
+        <div class="card-subtitle">Ranked Highest Score → Lowest Score (Tie-breaker: Earlier submission time)</div>
+      </div>
+      <div>
+        <a href="/api/admin/export/excel{% if active_test %}?test_id={{ active_test.id }}{% endif %}" class="btn btn-secondary btn-sm">
+          Export Full Excel
+        </a>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table" id="rankingsTable">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Candidate</th>
+            <th>Hall Ticket</th>
+            <th>Team</th>
+            <th>Score</th>
+            <th>Total Marks</th>
+            <th>Percentage</th>
+            <th>Time Taken</th>
+            <th>Violations</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="rankingsTableBody">
+          {% if ranked_results %}
+            {% for r in ranked_results %}
+              <tr>
+                <td><strong>#{{ r.rank }}</strong></td>
+                <td>{{ r.name }}</td>
+                <td style="font-family: var(--font-mono);">{{ r.hall_ticket_number }}</td>
+                <td>{{ r.team_id }}</td>
+                <td><strong style="color: var(--success);">{{ r.score }}</strong></td>
+                <td>{{ r.total_marks }}</td>
+                <td>{{ r.percentage }}%</td>
+                <td>{{ r.time_taken }}</td>
+                <td><span class="badge {% if r.violations_count > 0 %}badge-warning{% else %}badge-neutral{% endif %}">{{ r.violations_count }}</span></td>
+                <td><span class="badge badge-completed">{{ r.status }}</span></td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                No test submissions recorded yet.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}
